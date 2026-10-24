@@ -1,7 +1,8 @@
 """Load test for MediCloud (no extra installs needed).
 
 Simulates N concurrent users for D seconds with a realistic mix:
-  70% check available slots, 20% list doctors, 10% book an appointment.
+  ~70% check available slots, ~20% list doctors, 10% book an appointment
+  (--book-ratio 0 for a read-only run that leaves no test bookings behind).
 Prints throughput, error rate and latency (avg / P50 / P95 / P99).
 
     python tools/loadtest.py http://YOUR-ELASTIC-IP --users 50 --duration 120
@@ -32,6 +33,8 @@ def main():
     ap.add_argument("--users", type=int, default=50, help="concurrent virtual users")
     ap.add_argument("--duration", type=int, default=60, help="seconds")
     ap.add_argument("--think", type=float, default=0.0, help="pause between a user's requests (s)")
+    ap.add_argument("--book-ratio", type=float, default=0.10,
+                    help="share of requests that create bookings (0 = read-only, keeps demo data clean)")
     args = ap.parse_args()
 
     u = urlparse(args.url)
@@ -51,9 +54,9 @@ def main():
             r = rnd.random()
             doctor = rnd.randint(1, 6)
             day = (date.today() + timedelta(days=rnd.randint(1, 89))).isoformat()
-            if r < 0.70:
+            if r >= args.book_ratio and rnd.random() < 0.78:
                 name, method, path, body = "GET /api/slots", "GET", f"/api/slots?doctor_id={doctor}&date={day}", None
-            elif r < 0.90:
+            elif r >= args.book_ratio:
                 name, method, path, body = "GET /api/doctors", "GET", "/api/doctors", None
             else:
                 name, method, path = "POST /api/appointments", "POST", "/api/appointments"
