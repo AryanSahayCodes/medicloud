@@ -1,0 +1,18 @@
+# Used only on AWS: sends container logs to CloudWatch Logs.
+# Needs the EC2 instance role to allow CloudWatch Logs (CloudWatchAgentServerPolicy).
+#   docker compose -f docker-compose.yml -f docker-compose.aws.yml up -d --build
+services:
+  api:
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ${AWS_REGION:-ap-south-1}
+        awslogs-group: /medicloud/api
+        awslogs-create-group: "true"
+  db:
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ${AWS_REGION:-ap-south-1}
+        awslogs-group: /medicloud/db
+        awslogs-create-group: "true"

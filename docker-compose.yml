@@ -1,0 +1,34 @@
+# MediCloud: app container + PostgreSQL container on one Docker host.
+# DB_PASSWORD comes from the .env file next to this file (never committed to git).
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: medicloud
+      POSTGRES_USER: medicloud
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medicloud -d medicloud"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    build: ./app
+    image: medicloud-api:1.0.0
+    environment:
+      DATABASE_URL: postgresql://medicloud:${DB_PASSWORD}@db:5432/medicloud
+      APP_VERSION: "1.0.0"
+    ports:
+      - "80:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+    # Self-healing: Docker restarts the container automatically if it crashes
+    restart: unless-stopped
+
+volumes:
+  pgdata:

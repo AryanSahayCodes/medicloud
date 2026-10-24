@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MediCloud – Book an OPD Appointment</title>
+<style>
+  :root {
+    --navy: #0b2545; --teal: #0e8f9a; --teal-d: #0a6e77; --mint: #e4f3f4;
+    --coral: #e5534b; --green: #2e9e5b; --ink: #1f2933; --muted: #5b6b79;
+    --line: #d3dde4; --soft: #f3f7fa;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Segoe UI", Calibri, Arial, sans-serif; color: var(--ink); background: var(--soft); }
+  header { background: var(--navy); color: #fff; padding: 18px 16px; }
+  .wrap { max-width: 960px; margin: 0 auto; }
+  header h1 { margin: 0; font-size: 26px; }
+  header p { margin: 4px 0 0; color: #9fb3c8; }
+  nav { display: flex; gap: 8px; margin: 20px 0 16px; flex-wrap: wrap; }
+  nav button { border: 1px solid var(--line); background: #fff; color: var(--navy); padding: 10px 16px;
+    border-radius: 999px; font-size: 15px; font-weight: 600; cursor: pointer; }
+  nav button.active { background: var(--teal); border-color: var(--teal); color: #fff; }
+  main { padding: 0 16px 40px; }
+  .card { background: #fff; border-radius: 14px; padding: 22px; box-shadow: 0 1px 3px rgba(11,37,69,.08); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+  label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 6px; color: var(--navy); }
+  input, select { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 15px; }
+  .slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; margin-top: 6px; }
+  .slot { padding: 9px 0; border: 1px solid var(--line); border-radius: 8px; background: #fff; font-size: 14px; cursor: pointer; }
+  .slot:disabled { background: #eef1f4; color: #a3b0bb; cursor: not-allowed; text-decoration: line-through; }
+  .slot.sel { background: var(--teal); color: #fff; border-color: var(--teal); }
+  .btn { background: var(--teal); color: #fff; border: 0; padding: 12px 22px; border-radius: 8px; font-size: 16px;
+    font-weight: 600; cursor: pointer; margin-top: 18px; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn.ghost { background: #fff; color: var(--coral); border: 1px solid var(--coral); padding: 6px 12px; font-size: 13px; margin: 0; }
+  .msg { margin-top: 14px; padding: 12px 14px; border-radius: 8px; display: none; }
+  .msg.ok { display: block; background: #e6f6ec; color: #1e6b3d; }
+  .msg.err { display: block; background: #fcecea; color: #a3302a; }
+  table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 14px; }
+  th { text-align: left; background: var(--navy); color: #fff; padding: 9px; }
+  td { padding: 9px; border-bottom: 1px solid var(--line); }
+  .pill { padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .pill.booked { background: var(--mint); color: var(--teal-d); }
+  .pill.cancelled { background: #fcecea; color: var(--coral); }
+  .hidden { display: none; }
+  footer { color: var(--muted); font-size: 13px; padding: 0 16px 24px; }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #a3b0bb; margin-right: 6px; }
+  .dot.up { background: var(--green); } .dot.down { background: var(--coral); }
+  .stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  .stat { background: var(--mint); border-radius: 10px; padding: 10px 16px; min-width: 120px; }
+  .stat b { display: block; font-size: 22px; color: var(--teal-d); }
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <h1>MediCloud</h1>
+  <p>Online OPD appointment booking · Multi-specialty hospital</p>
+</div></header>
+
+<main class="wrap">
+  <nav>
+    <button class="active" data-tab="book">Book appointment</button>
+    <button data-tab="mine">My appointments</button>
+    <button data-tab="doctor">Doctor schedule</button>
+  </nav>
+
+  <section id="tab-book" class="card">
+    <div class="grid">
+      <div><label for="doctor">Doctor</label><select id="doctor"></select></div>
+      <div><label for="date">Date</label><input id="date" type="date"></div>
+      <div><label for="name">Patient name</label><input id="name" maxlength="80" placeholder="Full name"></div>
+      <div><label for="phone">Mobile number</label><input id="phone" maxlength="10" inputmode="numeric" placeholder="10-digit mobile"></div>
+    </div>
+    <label style="margin-top:16px">Available slots</label>
+    <div id="slots" class="slots"></div>
+    <button id="bookBtn" class="btn" disabled>Confirm booking</button>
+    <div id="bookMsg" class="msg"></div>
+  </section>
+
+  <section id="tab-mine" class="card hidden">
+    <div class="grid">
+      <div><label for="myPhone">Mobile number used for booking</label><input id="myPhone" maxlength="10" inputmode="numeric"></div>
+    </div>
+    <button id="findBtn" class="btn">Find my appointments</button>
+    <div id="mineMsg" class="msg"></div>
+    <div id="mineTable"></div>
+  </section>
+
+  <section id="tab-doctor" class="card hidden">
+    <div class="stats" id="stats"></div>
+    <div class="grid">
+      <div><label for="docSel">Doctor</label><select id="docSel"></select></div>
+      <div><label for="docDate">Date</label><input id="docDate" type="date"></div>
+    </div>
+    <button id="schedBtn" class="btn">Show schedule</button>
+    <div id="docTable"></div>
+  </section>
+</main>
+
+<footer class="wrap">
+  <span class="dot" id="dot"></span><span id="health">Checking service…</span>
+  · version {{ version }} · served by <code>{{ host }}</code>
+</footer>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let chosenSlot = null;
+
+function todayIST() {
+  const d = new Date(Date.now() + (330 + new Date().getTimezoneOffset()) * 60000);
+  return d.toISOString().slice(0, 10);
+}
+function show(el, text, ok) { el.textContent = text; el.className = "msg " + (ok ? "ok" : "err"); }
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, { headers: { "Content-Type": "application/json" }, ...opts });
+  let body = {};
+  try { body = await res.json(); } catch (_) {}
+  if (!res.ok) throw new Error(body.error || ("Request failed (" + res.status + ")"));
+  return body;
+}
+
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("nav button").forEach(x => x.classList.toggle("active", x === b));
+  ["book", "mine", "doctor"].forEach(t => $("tab-" + t).classList.toggle("hidden", t !== b.dataset.tab));
+  if (b.dataset.tab === "doctor") loadStats();
+});
+
+async function loadDoctors() {
+  const docs = await api("/api/doctors");
+  const opts = docs.map(d => `<option value="${d.id}">${esc(d.name)} – ${esc(d.specialty)}</option>`).join("");
+  $("doctor").innerHTML = opts; $("docSel").innerHTML = opts;
+}
+
+async function loadSlots() {
+  chosenSlot = null; updateBtn();
+  const list = await api(`/api/slots?doctor_id=${$("doctor").value}&date=${$("date").value}`);
+  $("slots").innerHTML = "";
+  list.forEach(s => {
+    const b = document.createElement("button");
+    b.className = "slot"; b.textContent = s.slot; b.disabled = !s.available;
+    b.onclick = () => { chosenSlot = s.slot; document.querySelectorAll(".slot").forEach(x => x.classList.toggle("sel", x === b)); updateBtn(); };
+    $("slots").appendChild(b);
+  });
+}
+
+function updateBtn() { $("bookBtn").disabled = !chosenSlot; }
+
+$("bookBtn").onclick = async () => {
+  $("bookBtn").disabled = true;
+  try {
+    const r = await api("/api/appointments", { method: "POST", body: JSON.stringify({
+      doctor_id: Number($("doctor").value), date: $("date").value, slot: chosenSlot,
+      patient_name: $("name").value, phone: $("phone").value }) });
+    show($("bookMsg"), `Booked! Appointment #${r.id} on ${r.date} at ${r.slot}.`, true);
+  } catch (e) { show($("bookMsg"), e.message, false); }
+  loadSlots().catch(() => {});
+};
+
+$("findBtn").onclick = async () => {
+  $("mineMsg").className = "msg"; $("mineTable").innerHTML = "";
+  try {
+    const rows = await api(`/api/appointments?phone=${encodeURIComponent($("myPhone").value)}`);
+    if (!rows.length) return show($("mineMsg"), "No appointments found for this number.", false);
+    $("mineTable").innerHTML = `<table><tr><th>#</th><th>Date</th><th>Time</th><th>Doctor</th><th>Status</th><th></th></tr>` +
+      rows.map(r => `<tr><td>${r.id}</td><td>${r.date}</td><td>${r.slot}</td><td>${esc(r.doctor)}</td>
+        <td><span class="pill ${r.status}">${r.status}</span></td>
+        <td>${r.status === "booked" ? `<button class="btn ghost" data-id="${r.id}">Cancel</button>` : ""}</td></tr>`).join("") + `</table>`;
+    document.querySelectorAll("#mineTable .ghost").forEach(b => b.onclick = async () => {
+      try { await api(`/api/appointments/${b.dataset.id}/cancel`, { method: "POST", body: JSON.stringify({ phone: $("myPhone").value }) });
+            $("findBtn").click(); } catch (e) { show($("mineMsg"), e.message, false); }
+    });
+  } catch (e) { show($("mineMsg"), e.message, false); }
+};
+
+$("schedBtn").onclick = async () => {
+  try {
+    const rows = await api(`/api/appointments?doctor_id=${$("docSel").value}&date=${$("docDate").value}`);
+    $("docTable").innerHTML = rows.length
+      ? `<table><tr><th>Time</th><th>Patient</th><th>Phone</th><th>#</th></tr>` +
+        rows.map(r => `<tr><td>${r.slot}</td><td>${esc(r.patient_name)}</td><td>${r.phone}</td><td>${r.id}</td></tr>`).join("") + `</table>`
+      : `<p style="color:var(--muted)">No bookings for this day.</p>`;
+  } catch (e) { $("docTable").innerHTML = `<div class="msg err">${esc(e.message)}</div>`; }
+};
+
+async function loadStats() {
+  try {
+    const s = await api("/api/stats");
+    $("stats").innerHTML = [["Today", s.today], ["Active", s.active], ["Cancelled", s.cancelled], ["All time", s.total]]
+      .map(([k, v]) => `<div class="stat"><b>${v}</b>${k}</div>`).join("");
+  } catch (_) {}
+}
+
+async function heartbeat() {
+  try {
+    const r = await fetch("/health", { cache: "no-store" });
+    const ok = r.ok;
+    $("dot").className = "dot " + (ok ? "up" : "down");
+    $("health").textContent = ok ? "All systems operational" : "Service degraded – retrying";
+  } catch (_) {
+    $("dot").className = "dot down"; $("health").textContent = "Service unreachable – retrying";
+  }
+}
+
+(async function init() {
+  const t = todayIST();
+  ["date", "docDate"].forEach(id => { $(id).value = t; $(id).min = t; });
+  try { await loadDoctors(); await loadSlots(); } catch (e) { show($("bookMsg"), e.message, false); }
+  $("doctor").onchange = $("date").onchange = () => loadSlots().catch(e => show($("bookMsg"), e.message, false));
+  heartbeat(); setInterval(heartbeat, 10000);
+})();
+</script>
+</body>
+</html>
