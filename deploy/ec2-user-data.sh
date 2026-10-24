@@ -1,10 +1,10 @@
 #!/bin/bash
 # EC2 user data for MediCloud (Amazon Linux 2023). Runs once, as root, on first boot.
-# Before pasting into the EC2 launch wizard, change REPO_URL to YOUR GitHub repo.
+# Paste this whole file into EC2 -> Launch instance -> Advanced details -> User data.
 # Progress log on the server: /var/log/cloud-init-output.log
 set -euxo pipefail
 
-REPO_URL="https://github.com/YOUR-GITHUB-USERNAME/medicloud.git"
+REPO_URL="https://github.com/AryanSahayCodes/medicloud.git"
 APP_DIR=/opt/medicloud
 
 # Region of this instance (for CloudWatch Logs)

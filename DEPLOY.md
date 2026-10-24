@@ -24,7 +24,7 @@ Admin access: Systems Manager Session Manager (no SSH port open)
 3. In a terminal in the `medicloud` folder (the commit is already made):
 
    ```bash
-   git remote add origin https://github.com/YOUR-GITHUB-USERNAME/medicloud.git
+   git remote add origin https://github.com/AryanSahayCodes/medicloud.git
    ```
 
    ```bash
@@ -33,11 +33,8 @@ Admin access: Systems Manager Session Manager (no SSH port open)
 
    A browser window asks you to sign in to GitHub the first time. Refresh the repo page afterwards: you should see the files.
 
-4. Open `deploy/ec2-user-data.sh` and change this line to your repo URL, then save:
-
-   ```
-   REPO_URL="https://github.com/YOUR-GITHUB-USERNAME/medicloud.git"
-   ```
+4. `deploy/ec2-user-data.sh` already points at this repo:
+   `REPO_URL="https://github.com/AryanSahayCodes/medicloud.git"`. The repo must stay **public** so the server can download it.
 
 ## Part B: AWS account and a cost alarm (15 min)
 
