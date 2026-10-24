@@ -73,7 +73,7 @@
     </div>
     <label style="margin-top:16px">Available slots</label>
     <div id="slots" class="slots"></div>
-    <button id="bookBtn" class="btn" disabled>Confirm booking</button>
+    <button id="bookBtn" class="btn">Confirm booking</button>
     <div id="bookMsg" class="msg"></div>
   </section>
 
@@ -110,7 +110,12 @@ function todayIST() {
   const d = new Date(Date.now() + (330 + new Date().getTimezoneOffset()) * 60000);
   return d.toISOString().slice(0, 10);
 }
-function show(el, text, ok) { el.textContent = text; el.className = "msg " + (ok ? "ok" : "err"); }
+function show(el, text, ok) {
+  el.textContent = text; el.className = "msg " + (ok ? "ok" : "err");
+  el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+// Accepts "98765 43210", "+91 9876543210", "09876543210" -> "9876543210"
+function cleanPhone(v) { return v.replace(/[\s-]/g, "").replace(/^(\+?91|0)(?=\d{10}$)/, ""); }
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 
 async function api(path, opts = {}) {
@@ -134,41 +139,52 @@ async function loadDoctors() {
 }
 
 async function loadSlots() {
-  chosenSlot = null; updateBtn();
+  chosenSlot = null;
   const list = await api(`/api/slots?doctor_id=${$("doctor").value}&date=${$("date").value}`);
   $("slots").innerHTML = "";
   list.forEach(s => {
     const b = document.createElement("button");
     b.className = "slot"; b.textContent = s.slot; b.disabled = !s.available;
-    b.onclick = () => { chosenSlot = s.slot; document.querySelectorAll(".slot").forEach(x => x.classList.toggle("sel", x === b)); updateBtn(); };
+    b.onclick = () => { chosenSlot = s.slot; document.querySelectorAll(".slot").forEach(x => x.classList.toggle("sel", x === b)); };
     $("slots").appendChild(b);
   });
+  if (!list.some(s => s.available)) {
+    $("slots").insertAdjacentHTML("beforeend", `<p style="grid-column:1/-1;color:var(--muted);margin:4px 0">No free slots on this date. Please pick another date.</p>`);
+  }
 }
 
-function updateBtn() { $("bookBtn").disabled = !chosenSlot; }
-
 $("bookBtn").onclick = async () => {
+  const name = $("name").value.trim(), phone = cleanPhone($("phone").value);
+  const problems = [];
+  if (!chosenSlot) problems.push("Please click a time slot.");
+  if (name.length < 2) problems.push("Please enter the patient's name.");
+  if (!/^[6-9]\d{9}$/.test(phone)) problems.push("Please enter a valid 10-digit mobile number.");
+  if (problems.length) return show($("bookMsg"), problems.join(" "), false);
+
   $("bookBtn").disabled = true;
+  $("bookBtn").textContent = "Booking…";
   try {
     const r = await api("/api/appointments", { method: "POST", body: JSON.stringify({
       doctor_id: Number($("doctor").value), date: $("date").value, slot: chosenSlot,
-      patient_name: $("name").value, phone: $("phone").value }) });
+      patient_name: name, phone }) });
     show($("bookMsg"), `Booked! Appointment #${r.id} on ${r.date} at ${r.slot}.`, true);
   } catch (e) { show($("bookMsg"), e.message, false); }
+  $("bookBtn").disabled = false;
+  $("bookBtn").textContent = "Confirm booking";
   loadSlots().catch(() => {});
 };
 
 $("findBtn").onclick = async () => {
   $("mineMsg").className = "msg"; $("mineTable").innerHTML = "";
   try {
-    const rows = await api(`/api/appointments?phone=${encodeURIComponent($("myPhone").value)}`);
+    const rows = await api(`/api/appointments?phone=${encodeURIComponent(cleanPhone($("myPhone").value))}`);
     if (!rows.length) return show($("mineMsg"), "No appointments found for this number.", false);
     $("mineTable").innerHTML = `<table><tr><th>#</th><th>Date</th><th>Time</th><th>Doctor</th><th>Status</th><th></th></tr>` +
       rows.map(r => `<tr><td>${r.id}</td><td>${r.date}</td><td>${r.slot}</td><td>${esc(r.doctor)}</td>
         <td><span class="pill ${r.status}">${r.status}</span></td>
         <td>${r.status === "booked" ? `<button class="btn ghost" data-id="${r.id}">Cancel</button>` : ""}</td></tr>`).join("") + `</table>`;
     document.querySelectorAll("#mineTable .ghost").forEach(b => b.onclick = async () => {
-      try { await api(`/api/appointments/${b.dataset.id}/cancel`, { method: "POST", body: JSON.stringify({ phone: $("myPhone").value }) });
+      try { await api(`/api/appointments/${b.dataset.id}/cancel`, { method: "POST", body: JSON.stringify({ phone: cleanPhone($("myPhone").value) }) });
             $("findBtn").click(); } catch (e) { show($("mineMsg"), e.message, false); }
     });
   } catch (e) { show($("mineMsg"), e.message, false); }

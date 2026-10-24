@@ -218,6 +218,12 @@ def health():
 PHONE_RE = re.compile(r"^[6-9]\d{9}$")
 
 
+def clean_phone(value):
+    """'+91 98765-43210', '098765 43210' -> '9876543210'."""
+    p = re.sub(r"[\s-]", "", str(value or ""))
+    return re.sub(r"^(\+?91|0)(?=\d{10}$)", "", p)
+
+
 def _require_schema():
     if not ensure_schema():
         raise RuntimeError("database unavailable")
@@ -259,7 +265,7 @@ def book():
     _require_schema()
     data = request.get_json(silent=True) or {}
     name = str(data.get("patient_name", "")).strip()
-    phone = str(data.get("phone", "")).strip()
+    phone = clean_phone(data.get("phone"))
     slot = str(data.get("slot", "")).strip()
     d = _parse_date(data.get("date"))
     try:
@@ -299,7 +305,7 @@ def book():
 def list_appointments():
     """?phone=... for a patient's bookings, or ?doctor_id=...&date=... for a doctor's day."""
     _require_schema()
-    phone = request.args.get("phone", "").strip()
+    phone = clean_phone(request.args.get("phone"))
     doctor_id = request.args.get("doctor_id", type=int)
     d = _parse_date(request.args.get("date"))
     base = """SELECT a.id, a.patient_name, a.phone, a.appt_date, a.slot, a.status, d.name, d.specialty
@@ -323,7 +329,7 @@ def list_appointments():
 def cancel(appt_id):
     _require_schema()
     data = request.get_json(silent=True) or {}
-    phone = str(data.get("phone", "")).strip()
+    phone = clean_phone(data.get("phone"))
     row = q("SELECT status FROM appointments WHERE id = ? AND phone = ?", (appt_id, phone), one=True)
     if not row:
         return jsonify(error="Appointment not found for this phone number."), 404
